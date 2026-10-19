@@ -17,7 +17,9 @@ extern bool ksu_bundled;
 extern struct selinux_policy *backup_sepolicy;
 extern bool ksu_no_custom_rc;
 
-#ifdef CONFIG_ANDROID
+/* Infinity: built in -> call the LSM API directly; a by-name kallsyms lookup fails
+ * when GCC LTO renames it (security_secctx_to_secid.lto_priv.0) */
+#if defined(CONFIG_ANDROID) || !defined(MODULE)
 #include <linux/security.h>
 #define ksu_security_secctx_to_secid security_secctx_to_secid
 #else

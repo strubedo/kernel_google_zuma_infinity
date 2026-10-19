@@ -7,7 +7,8 @@
 #include "ksu.h"
 #include "infra/symbol_resolver.h"
 
-#ifdef CONFIG_ANDROID
+/* Infinity: built in -> direct calls (see include/ksu.h) */
+#if defined(CONFIG_ANDROID) || !defined(MODULE)
 #define ksu_security_secid_to_secctx security_secid_to_secctx
 #define ksu_security_release_secctx security_release_secctx
 #else

@@ -122,3 +122,6 @@ uninstall:
 
 clean:
 	rm -rf *.o *.ko *.o.* *.mod.* modules.* Module.* .a* .o* .*.o.* *.mod .tmp* .cache.mk .modules.order.cmd .Module.symvers.cmd
+
+# Infinity: rename the globals aic8800_fdrv defines too (one kernel, no modules)
+ccflags-y += -include $(srctree)/$(src)/infinity_rename.h

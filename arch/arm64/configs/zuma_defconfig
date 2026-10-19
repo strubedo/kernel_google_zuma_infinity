@@ -856,5 +856,5 @@ CONFIG_DEFAULT_BBR3=y
 # CONFIG_TCP_CONG_HTCP is not set
 # Infinity: System V IPC for Kali NetHunter's chroot (no KMI here: monolithic)
 CONFIG_SYSVIPC=y
-# Infinity: KernelSU-Next needs kprobes (patch_memory / syscall_hook), like shiba-ksun
-CONFIG_KPROBES=y
+# Infinity: no CONFIG_KPROBES here (it depends on MODULES, off in this monolithic
+# kernel); KernelSU-Next/kernel/Kbuild builds lsm_hook + patch_memory without it

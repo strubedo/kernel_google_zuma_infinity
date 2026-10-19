@@ -18,12 +18,12 @@ else ifneq ($(filter y riscv riscv64,$(CONFIG_RISCV) $(ARCH)),)
 KSU_ARCH := riscv64
 endif
 
-# Core utilities ('selinux hide'/hooks)
-ifeq ($(strip $(CONFIG_KPROBES)),y)
+# Core utilities ('selinux hide'/hooks). Infinity: neither file uses kprobes, and
+# feature/selinux_hide.o (always built) calls ksu_patch_text - build them even
+# without CONFIG_KPROBES (Sultan's monolithic kernel: no MODULES -> no KPROBES)
 kernelsu-objs += hook/lsm_hook.o
 ifdef KSU_ARCH
 kernelsu-objs += hook/$(KSU_ARCH)/patch_memory.o
-endif
 endif
 
 # Hooks (excluded for SuSFS)

@@ -860,3 +860,5 @@ CONFIG_SYSVIPC=y
 # kernel); KernelSU-Next/kernel/Kbuild builds lsm_hook + patch_memory without it
 # Infinity: AIC8800 USB Wi-Fi in the kernel (integrated module: starts on insmod)
 CONFIG_AIC8800_USB=m
+# Infinity: UAPI headers for KernelSU-Next's preinit runner (as gki_defconfig has it)
+CONFIG_HEADERS_INSTALL=y

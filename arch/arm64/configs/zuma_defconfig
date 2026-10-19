@@ -858,3 +858,5 @@ CONFIG_DEFAULT_BBR3=y
 CONFIG_SYSVIPC=y
 # Infinity: no CONFIG_KPROBES here (it depends on MODULES, off in this monolithic
 # kernel); KernelSU-Next/kernel/Kbuild builds lsm_hook + patch_memory without it
+# Infinity: AIC8800 USB Wi-Fi in the kernel (integrated module: starts on insmod)
+CONFIG_AIC8800_USB=m

@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0
+# Infinity: AICSemi AIC8800 USB Wi-Fi (shenmintao/aic8800d80 @ 2c4ab4b), in tree
+# for Sultan's monolithic kernel (no loadable modules).
+config AIC8800_USB
+	tristate "AICSemi AIC8800 USB Wi-Fi (D80 etc., e.g. UGREEN AX900)"
+	depends on USB && CFG80211
+	help
+	  Firmware is requested by bare file name (request_firmware), so it
+	  has to be in a firmware_class.path directory.
+
+# the switches the driver's own Makefiles test
+config AIC_LOADFW_SUPPORT
+	tristate
+	default AIC8800_USB
+
+config AIC8800_WLAN_SUPPORT
+	tristate
+	default AIC8800_USB

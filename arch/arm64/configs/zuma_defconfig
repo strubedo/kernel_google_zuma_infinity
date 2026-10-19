@@ -861,3 +861,6 @@ CONFIG_SYSVIPC=y
 # kernel); KernelSU-Next/kernel/Kbuild builds lsm_hook + patch_memory without it
 # Infinity: AIC8800 USB Wi-Fi in the kernel (integrated module: starts on insmod)
 CONFIG_AIC8800_USB=m
+# Infinity: LTO off makes GCC 14 warn in vendor code Sultan never built this way (e.g. gsa_core.c
+# -Wnonnull false positive) - keep warnings visible, not fatal
+# CONFIG_WERROR is not set

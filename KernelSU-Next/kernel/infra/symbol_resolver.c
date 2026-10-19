@@ -59,6 +59,33 @@ struct ksu_lookup_symbol_ctx {
     void *match;
 };
 
+#ifndef MODULE
+/*
+ * Infinity: GCC LTO (-fwhole-program) makes kernel globals local and renames
+ * them <name>.lto_priv.<n> - same object, new name. Accept that only when it is
+ * unique; .constprop/.isra/.part clones have a different calling convention and
+ * are never taken.
+ */
+static unsigned long ksu_lookup_lto_priv(const char *symbol_name)
+{
+    char name[KSYM_NAME_LEN];
+    unsigned long addr;
+
+    if (snprintf(name, sizeof(name), "%s.lto_priv.0", symbol_name) >= (int)sizeof(name))
+        return 0;
+    addr = kallsyms_lookup_name(name);
+    if (!addr)
+        return 0;
+    snprintf(name, sizeof(name), "%s.lto_priv.1", symbol_name);
+    if (kallsyms_lookup_name(name)) {
+        pr_warn("%s: more than one .lto_priv variant, not guessing\n", symbol_name);
+        return 0;
+    }
+    pr_info("using %s.lto_priv.0\n", symbol_name);
+    return addr;
+}
+#endif
+
 unsigned long __nocfi find_kernel_symbol_exact(const char *symbol_name)
 {
     unsigned long addr = 0;
@@ -72,6 +99,10 @@ unsigned long __nocfi find_kernel_symbol_exact(const char *symbol_name)
     char buf[KSYM_SYMBOL_LEN];
 
     addr = kallsyms_lookup_name(symbol_name);
+#ifndef MODULE
+    if (!addr)
+        addr = ksu_lookup_lto_priv(symbol_name);
+#endif
     // check if it is kernel symbol
     kallsyms_lookup(addr, NULL, NULL, &module_name, buf);
     if (unlikely(module_name)) {

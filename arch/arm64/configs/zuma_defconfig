@@ -44,8 +44,7 @@ CONFIG_RT_SOFTIRQ_AWARE_SCHED=y
 # CONFIG_RD_ZSTD is not set
 CONFIG_BOOT_CONFIG=y
 CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE_O3=y
-# Infinity: GCC LTO renames ~28 symbols KernelSU-Next+SUSFS look up by name -> root broken
-# CONFIG_LTO_GCC is not set
+CONFIG_LTO_GCC=y
 # CONFIG_SYSFS_SYSCALL is not set
 # CONFIG_FHANDLE is not set
 # CONFIG_IO_URING is not set
@@ -861,6 +860,3 @@ CONFIG_SYSVIPC=y
 # kernel); KernelSU-Next/kernel/Kbuild builds lsm_hook + patch_memory without it
 # Infinity: AIC8800 USB Wi-Fi in the kernel (integrated module: starts on insmod)
 CONFIG_AIC8800_USB=m
-# Infinity: LTO off makes GCC 14 warn in vendor code Sultan never built this way (e.g. gsa_core.c
-# -Wnonnull false positive) - keep warnings visible, not fatal
-# CONFIG_WERROR is not set

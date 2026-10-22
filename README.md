@@ -1,5 +1,7 @@
 # Infinity Kernel for the Google Pixel 8 (shiba)
 
+**Built for Kali NetHunter.**
+
 Infinity is a monolithic, Sultan-style kernel for the **Pixel 8 (shiba, zuma SoC)** on
 **Android 17, build CP3A.261005.005**. It is Ante0's `tensynos` tree (17.0.0-cp3a) with
 root, a newer TCP congestion control, and the pieces needed to run **Kali NetHunter**
@@ -147,6 +149,10 @@ same build. KernelSU-Next needs its manager app
   [WildKernels kernel_patches](https://github.com/WildKernels/kernel_patches).
 - **AIC8800** - AICSemi / RivieraWaves vendor driver; Linux packaging by
   [shenmintao/aic8800d80](https://github.com/shenmintao/aic8800d80).
+- **Kali NetHunter** - [Offensive Security](https://www.kali.org/docs/nethunter/) /
+  the [NetHunter project](https://gitlab.com/kalilinux/nethunter); this kernel exists
+  to run it, which is why System V IPC, the USB HID gadget and the AIC8800 driver are
+  built in.
 
 ## License
 

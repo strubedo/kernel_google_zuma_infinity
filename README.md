@@ -1,150 +1,149 @@
-# How do I submit patches to Android Common Kernels
+# Infinity Kernel for the Google Pixel 8 (shiba)
 
-1. BEST: Make all of your changes to upstream Linux. If appropriate, backport to the stable releases.
-   These patches will be merged automatically in the corresponding common kernels. If the patch is already
-   in upstream Linux, post a backport of the patch that conforms to the patch requirements below.
-   - Do not send patches upstream that contain only symbol exports. To be considered for upstream Linux,
-additions of `EXPORT_SYMBOL_GPL()` require an in-tree modular driver that uses the symbol -- so include
-the new driver or changes to an existing driver in the same patchset as the export.
-   - When sending patches upstream, the commit message must contain a clear case for why the patch
-is needed and beneficial to the community. Enabling out-of-tree drivers or functionality is not
-not a persuasive case.
+Infinity is a monolithic, Sultan-style kernel for the **Pixel 8 (shiba, zuma SoC)** on
+**Android 17, build CP3A.261005.005**. It is Ante0's `tensynos` tree (17.0.0-cp3a) with
+root, a newer TCP congestion control, USB Wi-Fi and System V IPC added.
 
-2. LESS GOOD: Develop your patches out-of-tree (from an upstream Linux point-of-view). Unless these are
-   fixing an Android-specific bug, these are very unlikely to be accepted unless they have been
-   coordinated with kernel-team@android.com. If you want to proceed, post a patch that conforms to the
-   patch requirements below.
+`uname -r`: `6.1.145-Infinity+`
 
-# Common Kernel patch requirements
+> Pixel 8 only. Other zuma/zumapro devices (8 Pro, 8a, 9 series) are not tested.
+> Flashing a custom kernel needs an unlocked bootloader and can leave the phone
+> unbootable until you flash stock images back. Keep the stock `boot.img` and
+> `vendor_kernel_boot.img` from the CP3A factory image at hand.
 
-- All patches must conform to the Linux kernel coding standards and pass `scripts/checkpatch.pl`
-- Patches shall not break gki_defconfig or allmodconfig builds for arm, arm64, x86, x86_64 architectures
-(see  https://source.android.com/setup/build/building-kernels)
-- If the patch is not merged from an upstream branch, the subject must be tagged with the type of patch:
-`UPSTREAM:`, `BACKPORT:`, `FROMGIT:`, `FROMLIST:`, or `ANDROID:`.
-- All patches must have a `Change-Id:` tag (see https://gerrit-review.googlesource.com/Documentation/user-changeid.html)
-- If an Android bug has been assigned, there must be a `Bug:` tag.
-- All patches must have a `Signed-off-by:` tag by the author and the submitter
+## What Infinity adds on top of the base tree
 
-Additional requirements are listed below based on patch type
+| Change | Notes |
+| --- | --- |
+| KernelSU-Next (built in) | KernelSU-Next `f8ab5e8`, vendored as `KernelSU-Next/{kernel,uapi}`; `drivers/kernelsu` is a symlink to `../KernelSU-Next/kernel`. Builds its LSM hooks without kprobes (this kernel has no loadable modules, so no `CONFIG_KPROBES`). Its symbol lookups accept a unique `<name>.lto_priv.0`, because GCC LTO renames some globals; the built-in copy calls the LSM secctx API directly. |
+| SUSFS (built in) | simonpunk's susfs4ksu `gki-android14-6.1` @ `5369359` plus two commits by pershoot (SUSFS and toolkit coexistence, core without features). Features on: SUS_PATH, SUS_MOUNT, SUS_KSTAT, SUS_MAP, SPOOF_UNAME, SPOOF_CMDLINE_OR_BOOTCONFIG, OPEN_REDIRECT, HIDE_KSU_SUSFS_SYMBOLS, ENABLE_LOG. |
+| BBRv3 (default) | Google's BBRv3 backport (`net/ipv4/tcp_bbr3.c`), set as the default congestion control (`CONFIG_DEFAULT_TCP_CONG="bbr3"`); BBR v1 and CUBIC are still built. |
+| AIC8800 USB Wi-Fi | AICSemi AIC8800 (D80) USB driver in `drivers/net/wireless/aic8800`, from shenmintao/aic8800d80 @ `2c4ab4b` with an Android 6.1 cfg80211 API fix. Built in as an integrated module (`CONFIG_AIC8800_USB=m`); see below. The firmware is not part of this repository. |
+| System V IPC | `CONFIG_SYSVIPC=y` (for example for a Linux chroot such as Kali NetHunter). |
+| Build fixes | `certs/extract-cert.c` builds against OpenSSL without ENGINE support (OpenSSL 4); `LOCALVERSION=-Infinity`. |
 
-## Requirements for backports from mainline Linux: `UPSTREAM:`, `BACKPORT:`
+Everything else (scheduler, integrated modules, LTO, the `zuma_defconfig`) is the base tree.
 
-- If the patch is a cherry-pick from Linux mainline with no changes at all
-    - tag the patch subject with `UPSTREAM:`.
-    - add upstream commit information with a `(cherry picked from commit ...)` line
-    - Example:
-        - if the upstream commit message is
-```
-        important patch from upstream
+### Things that behave differently from a stock Pixel kernel
 
-        This is the detailed description of the important patch
+- **`/proc/config.gz` is not the running config.** The base tree builds it from
+  `arch/arm64/configs/gki-stock_defconfig`. The real configuration is
+  `arch/arm64/configs/zuma_defconfig` (or `out/.config` after a build).
+- **No loadable modules.** Drivers that are modules on a stock kernel are
+  "integrated modules" here (`CONFIG_INTEGRATE_MODULES`): the built-in copy starts when
+  userspace runs `insmod` on any `.ko` whose module name matches. A started driver shows
+  up in `/sys/bus/usb/drivers/<name>` (not in `/proc/modules`). To check whether a driver
+  is built in: `grep ' __initdone__kmod_<name>__$' /proc/kallsyms`.
+  The AIC8800 driver starts this way (module names `aic_load_fw` and `aic8800_fdrv`)
+  and loads its firmware with `request_firmware`.
+- **No `/proc/vendor_sched`.** The base tree removes Google's vendor scheduler, so the
+  Pixel power HAL's vendor_sched hints have no effect; cpufreq limits, schedutil
+  `rate_limit_us` and cgroup `uclamp` work.
+- **No 32-bit userspace** (`CONFIG_COMPAT` is off in the base tree).
 
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
-```
->- then Joe Smith would upload the patch for the common kernel as
-```
-        UPSTREAM: important patch from upstream
+## Building
 
-        This is the detailed description of the important patch
+Host: x86_64 Linux with the usual kernel build dependencies (make, bc, bison, flex,
+libssl-dev/openssl headers, libelf, lz4, python3).
 
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
+Toolchain: GCC 14.2.0, bare-metal `aarch64-linux` (nolibc), the same toolchain the base
+tree bundles under `toolchains/`. It is not included here; put it at
+`toolchains/gcc-14.2.0-nolibc/aarch64-linux/` (the layout of the kernel.org crosstool
+build `x86_64-gcc-14.2.0-nolibc-aarch64-linux`).
 
-        Bug: 135791357
-        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        (cherry picked from commit c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
-        Signed-off-by: Joe Smith <joe.smith@foo.org>
-```
+```sh
+export ARCH=arm64
+export CROSS_COMPILE="$PWD/toolchains/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-"
+export KBUILD_BUILD_USER=infinity KBUILD_BUILD_HOST=build
 
-- If the patch requires any changes from the upstream version, tag the patch with `BACKPORT:`
-instead of `UPSTREAM:`.
-    - use the same tags as `UPSTREAM:`
-    - add comments about the changes under the `(cherry picked from commit ...)` line
-    - Example:
-```
-        BACKPORT: important patch from upstream
-
-        This is the detailed description of the important patch
-
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
-
-        Bug: 135791357
-        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        (cherry picked from commit c31e73121f4c1ec41143423ac6ce3ce6dafdcec1)
-        [joe: Resolved minor conflict in drivers/foo/bar.c ]
-        Signed-off-by: Joe Smith <joe.smith@foo.org>
+make O=out zuma_defconfig
+make O=out -j"$(nproc)" HOSTCFLAGS=-DOPENSSL_NO_ENGINE
 ```
 
-## Requirements for other backports: `FROMGIT:`, `FROMLIST:`,
+`HOSTCFLAGS=-DOPENSSL_NO_ENGINE` is only needed with OpenSSL 4 (or any OpenSSL built
+without ENGINE). Do not turn LTO off: the integrated modules rely on it (without LTO the
+edgetpu and gxp drivers collide on duplicate gcip symbols). If an LTO link fails with
+only "ld returned 1 exit status", run `make` again.
 
-- If the patch has been merged into an upstream maintainer tree, but has not yet
-been merged into Linux mainline
-    - tag the patch subject with `FROMGIT:`
-    - add info on where the patch came from as `(cherry picked from commit <sha1> <repo> <branch>)`. This
-must be a stable maintainer branch (not rebased, so don't use `linux-next` for example).
-    - if changes were required, use `BACKPORT: FROMGIT:`
-    - Example:
-        - if the commit message in the maintainer tree is
-```
-        important patch from upstream
+Output: `out/arch/arm64/boot/Image` (and `Image.lz4`) and the device trees
+`out/google-devices/zuma/dts/zuma-{a0,b0}-{foplp,ipop}.dtb`.
 
-        This is the detailed description of the important patch
+## Packaging (boot + vendor_kernel_boot)
 
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
-```
->- then Joe Smith would upload the patch for the common kernel as
-```
-        FROMGIT: important patch from upstream
+Infinity replaces two partitions: the kernel in `boot` and the device tree in
+`vendor_kernel_boot`. Start from the stock **CP3A.261005.005** images (from Google's
+factory image) and repack them with
+[magiskboot](https://github.com/topjohnwu/Magisk):
 
-        This is the detailed description of the important patch
+```sh
+# boot: swap the kernel
+mkdir boot && cd boot
+magiskboot unpack /path/to/stock/boot.img
+cp ../out/arch/arm64/boot/Image kernel
+magiskboot repack /path/to/stock/boot.img ../boot-infinity.img
+cd ..
 
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
-
-        Bug: 135791357
-        (cherry picked from commit 878a2fd9de10b03d11d2f622250285c7e63deace
-         https://git.kernel.org/pub/scm/linux/kernel/git/foo/bar.git test-branch)
-        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        Signed-off-by: Joe Smith <joe.smith@foo.org>
-```
-
-
-- If the patch has been submitted to LKML, but not accepted into any maintainer tree
-    - tag the patch subject with `FROMLIST:`
-    - add a `Link:` tag with a link to the submittal on lore.kernel.org
-    - add a `Bug:` tag with the Android bug (required for patches not accepted into
-a maintainer tree)
-    - if changes were required, use `BACKPORT: FROMLIST:`
-    - Example:
-```
-        FROMLIST: important patch from upstream
-
-        This is the detailed description of the important patch
-
-        Signed-off-by: Fred Jones <fred.jones@foo.org>
-
-        Bug: 135791357
-        Link: https://lore.kernel.org/lkml/20190619171517.GA17557@someone.com/
-        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        Signed-off-by: Joe Smith <joe.smith@foo.org>
+# vendor_kernel_boot: swap the device tree (all four zuma variants, in this order)
+mkdir vkb && cd vkb
+magiskboot unpack /path/to/stock/vendor_kernel_boot.img
+cat ../out/google-devices/zuma/dts/zuma-a0-foplp.dtb \
+    ../out/google-devices/zuma/dts/zuma-a0-ipop.dtb \
+    ../out/google-devices/zuma/dts/zuma-b0-foplp.dtb \
+    ../out/google-devices/zuma/dts/zuma-b0-ipop.dtb > dtb
+magiskboot repack /path/to/stock/vendor_kernel_boot.img ../vendor_kernel_boot-infinity.img
+cd ..
 ```
 
-## Requirements for Android-specific patches: `ANDROID:`
+The stock `vendor_kernel_boot` ramdisk (Google's vendor modules) stays as it is.
 
-- If the patch is fixing a bug to Android-specific code
-    - tag the patch subject with `ANDROID:`
-    - add a `Fixes:` tag that cites the patch with the bug
-    - Example:
-```
-        ANDROID: fix android-specific bug in foobar.c
+## Flashing
 
-        This is the detailed description of the important fix
+Always flash **both** images, onto the slot you boot:
 
-        Fixes: 1234abcd2468 ("foobar: add cool feature")
-        Change-Id: I4caaaa566ea080fa148c5e768bb1a0b6f7201c01
-        Signed-off-by: Joe Smith <joe.smith@foo.org>
+```sh
+fastboot flash boot boot-infinity.img
+fastboot flash vendor_kernel_boot vendor_kernel_boot-infinity.img
+fastboot reboot
 ```
 
-- If the patch is a new feature
-    - tag the patch subject with `ANDROID:`
-    - add a `Bug:` tag with the Android bug (required for android-specific features)
+With [TWRP for the Pixel 8](https://github.com/strubedo/twrp_device_google_shiba)
+(v9.55 or newer), a zip with the two images can also be installed from
+Advanced > Install custom kernel.
 
+To go back to stock, flash the stock `boot.img` and `vendor_kernel_boot.img` of the
+same build. KernelSU-Next needs its manager app
+([KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next)) for root.
+
+## Credits
+
+- **Linux kernel** developers and the **Android Common Kernel** / **Google Pixel kernel**
+  teams (`google-modules/`, `google-devices/`).
+- **Sultan Alsawaf (kerneltoast)** - the Sultan kernel for Pixel, which this tree is built on.
+- **Ante0** - [android_kernel_google_tensynos](https://github.com/Ante0/android_kernel_google_tensynos),
+  branch 17.0.0-cp3a @ `cc074612d`, the base of this repository (imported unmodified
+  except for the bundled `toolchains/`).
+- **KernelSU-Next** - [KernelSU-Next/KernelSU-Next](https://github.com/KernelSU-Next/KernelSU-Next)
+  (based on KernelSU by tiann).
+- **SUSFS** - simonpunk, [susfs4ksu](https://gitlab.com/simonpunk/susfs4ksu); with commits
+  by pershoot.
+- **BBRv3** - Google's [BBR](https://github.com/google/bbr) team; backport as packaged by
+  [WildKernels kernel_patches](https://github.com/WildKernels/kernel_patches).
+- **AIC8800** - AICSemi / RivieraWaves vendor driver; Linux packaging by
+  [shenmintao/aic8800d80](https://github.com/shenmintao/aic8800d80).
+
+## License
+
+The kernel is licensed under the **GNU General Public License v2.0 only**, see
+[`COPYING`](COPYING) and [`LICENSES/`](LICENSES). Individual files carry their own SPDX
+tags or license headers; third-party parts keep their licenses:
+
+- `KernelSU-Next/kernel/`: GPL-2.0 ([`KernelSU-Next/kernel/LICENSE`](KernelSU-Next/kernel/LICENSE));
+  the KernelSU-Next project as a whole (manager, userspace) is GPL-3.0
+  ([`KernelSU-Next/LICENSE`](KernelSU-Next/LICENSE)).
+- `fs/susfs.c`, `include/linux/susfs*.h`: from susfs4ksu (see that project for its terms).
+- `net/ipv4/tcp_bbr3.c`: Dual BSD/GPL (`MODULE_LICENSE`).
+- `drivers/net/wireless/aic8800/`: vendor driver, `MODULE_LICENSE("GPL")`; copyright
+  AICSemi and RivieraWaves as stated in the files.
+
+The original Android Common Kernel README is kept as
+[`README.android-common-kernel.md`](README.android-common-kernel.md).

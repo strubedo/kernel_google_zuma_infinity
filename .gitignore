@@ -174,3 +174,6 @@ all_kmi_symbols
 
 # Object directory
 out/
+
+# Toolchain (download it, see README.md - not part of this repository)
+/toolchains/

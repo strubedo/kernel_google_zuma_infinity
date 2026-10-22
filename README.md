@@ -55,6 +55,9 @@ build `x86_64-gcc-14.2.0-nolibc-aarch64-linux`).
 export ARCH=arm64
 export CROSS_COMPILE="$PWD/toolchains/gcc-14.2.0-nolibc/aarch64-linux/bin/aarch64-linux-"
 export KBUILD_BUILD_USER=infinity KBUILD_BUILD_HOST=build
+# keep the build machine out of the image: no source path in __FILE__, fixed date and build number
+export KCFLAGS="-fmacro-prefix-map=$PWD/="
+export KBUILD_BUILD_TIMESTAMP="Wed Oct 21 00:00:00 UTC 2026" KBUILD_BUILD_VERSION=1
 
 make O=out zuma_defconfig
 make O=out -j"$(nproc)" HOSTCFLAGS=-DOPENSSL_NO_ENGINE
@@ -64,6 +67,11 @@ make O=out -j"$(nproc)" HOSTCFLAGS=-DOPENSSL_NO_ENGINE
 without ENGINE). Do not turn LTO off: the integrated modules rely on it (without LTO the
 edgetpu and gxp drivers collide on duplicate gcip symbols). If an LTO link fails with
 only "ld returned 1 exit status", run `make` again.
+
+`KCFLAGS` must come from the environment as above: given on the `make` command line it
+replaces the Makefile's own `KCFLAGS += -D__ANDROID_COMMON_KERNEL__` and the Mali GPU driver
+fails to build. Some vendor Kbuild files (edgetpu) use absolute include paths, so without the
+prefix map the full source path of the build machine ends up in the image.
 
 Output: `out/arch/arm64/boot/Image` (and `Image.lz4`) and the device trees
 `out/google-devices/zuma/dts/zuma-{a0,b0}-{foplp,ipop}.dtb`.
@@ -95,6 +103,13 @@ cd ..
 ```
 
 The stock `vendor_kernel_boot` ramdisk (Google's vendor modules) stays as it is.
+
+## Prebuilt images
+
+The release **infinity-v6** (tag `infinity-v6`, built from this source with the settings
+above) has `infinity-v6.zip` (`boot-infinity-v6.img` + `vendor_kernel_boot-infinity-v6.img`)
+and `SHA256SUMS` (checksums of the zip and of both images). Version string: `6.1.145-Infinity+ (infinity@build) ... #1 SMP
+PREEMPT Wed Oct 21 00:00:00 UTC 2026`. Tested on a Pixel 8 with CP3A.261005.005, both slots.
 
 ## Flashing
 

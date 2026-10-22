@@ -2,7 +2,8 @@
 
 Infinity is a monolithic, Sultan-style kernel for the **Pixel 8 (shiba, zuma SoC)** on
 **Android 17, build CP3A.261005.005**. It is Ante0's `tensynos` tree (17.0.0-cp3a) with
-root, a newer TCP congestion control, USB Wi-Fi and System V IPC added.
+root, a newer TCP congestion control, and the pieces needed to run **Kali NetHunter**
+on-device (USB Wi-Fi, System V IPC, USB HID gadget) added.
 
 `uname -r`: `6.1.145-Infinity+`
 
@@ -19,7 +20,8 @@ root, a newer TCP congestion control, USB Wi-Fi and System V IPC added.
 | SUSFS (built in) | simonpunk's susfs4ksu `gki-android14-6.1` @ `5369359` plus two commits by pershoot (SUSFS and toolkit coexistence, core without features). Features on: SUS_PATH, SUS_MOUNT, SUS_KSTAT, SUS_MAP, SPOOF_UNAME, SPOOF_CMDLINE_OR_BOOTCONFIG, OPEN_REDIRECT, HIDE_KSU_SUSFS_SYMBOLS, ENABLE_LOG. |
 | BBRv3 (default) | Google's BBRv3 backport (`net/ipv4/tcp_bbr3.c`), set as the default congestion control (`CONFIG_DEFAULT_TCP_CONG="bbr3"`); BBR v1 and CUBIC are still built. |
 | AIC8800 USB Wi-Fi | AICSemi AIC8800 (D80) USB driver in `drivers/net/wireless/aic8800`, from shenmintao/aic8800d80 @ `2c4ab4b` with an Android 6.1 cfg80211 API fix. Built in as an integrated module (`CONFIG_AIC8800_USB=m`); see below. The firmware is not part of this repository. |
-| System V IPC | `CONFIG_SYSVIPC=y` (for example for a Linux chroot such as Kali NetHunter). |
+| System V IPC | `CONFIG_SYSVIPC=y`, added for Kali NetHunter's chroot (`ipcmk` and friends). |
+| USB HID gadget | `CONFIG_USB_CONFIGFS_F_HID=y`, for NetHunter's USB Arsenal (HID injection over USB). |
 | Build fixes | `certs/extract-cert.c` builds against OpenSSL without ENGINE support (OpenSSL 4); `LOCALVERSION=-Infinity`. |
 
 Everything else (scheduler, integrated modules, LTO, the `zuma_defconfig`) is the base tree.

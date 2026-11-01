@@ -253,6 +253,11 @@ kernel_susfs_already_pinned() {
 	[[ -f "$KERNEL_REPO/fs/susfs.c" ]]
 }
 
+ksu_next_has_native_susfs() {
+	[[ -f "$KERNEL_REPO/KernelSU-Next/kernel/extras.c" ]] && \
+		grep -q "ksu_avc_spoof_init" "$KERNEL_REPO/KernelSU-Next/kernel/extras.c"
+}
+
 patch_susfs_ksu() {
 	if kernel_susfs_already_pinned; then
 		msg "SUSFS is already pinned into this kernel source tree - skipping the upstream susfs4ksu kernel patch (re-applying a live, unpinned susfs4ksu checkout here would overwrite the pinned/hand-resolved version)"
@@ -285,53 +290,56 @@ patch_susfs_ksu_next() {
 			"$KERNEL_REPO/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch"
 	fi
 
-	msg "Applying SUSFS KernelSU patch"
-	apply_patch_optional \
-		"$KERNEL_REPO/KernelSU-Next" \
-		"$KERNEL_REPO/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch"
+	if ksu_next_has_native_susfs; then
+		msg "KernelSU-Next already ships native SUSFS support (extras.c/susfs/) - skipping the now-obsolete susfs4ksu KernelSU patch and its v2.2.0 compatibility fixes, which assume an older, pre-native-SUSFS KernelSU-Next"
+	else
+		msg "Applying SUSFS KernelSU patch"
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/susfs4ksu/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch"
 
-	msg "Applying KernelSU-Next compatibility fixes"
+		msg "Applying KernelSU-Next compatibility fixes"
 
-	apply_patch_optional \
-		"$KERNEL_REPO/KernelSU-Next" \
-		"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_Kbuild.patch"
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_Kbuild.patch"
 
-	apply_patch_optional \
-		"$KERNEL_REPO/KernelSU-Next" \
-		"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_dispatch.c.patch"
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_dispatch.c.patch"
 
-	apply_patch_optional \
-                "$KERNEL_REPO/KernelSU-Next" \
-                "$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_init.c.patch"
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_init.c.patch"
 
-        apply_patch_optional \
-                "$KERNEL_REPO/KernelSU-Next" \
-        	"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_kernel_umount.c.patch"
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_kernel_umount.c.patch"
 
-        apply_patch_optional \
-                "$KERNEL_REPO/KernelSU-Next" \
-                "$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_setuid_hook.c.patch"
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_setuid_hook.c.patch"
 
-        apply_patch_optional \
-                "$KERNEL_REPO/KernelSU-Next" \
-                "$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_sucompat.c.patch"
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_sucompat.c.patch"
 
-        apply_patch_optional \
-                "$KERNEL_REPO/KernelSU-Next" \
-                "$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_supercall.c.patch"
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_supercall.c.patch"
 
-        apply_patch_optional \
-                "$KERNEL_REPO/KernelSU-Next" \
-                "$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_selinux.c.patch"
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_selinux.c.patch"
 
-        apply_patch_optional \
-                "$KERNEL_REPO/KernelSU-Next" \
-                "$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_ksu.h.patch"
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/fix_ksu.h.patch"
 
-        apply_patch_optional \
-                "$KERNEL_REPO/KernelSU-Next" \
-                "$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/ksu_toolkit.patch"
-
+		apply_patch_optional \
+			"$KERNEL_REPO/KernelSU-Next" \
+			"$KERNEL_REPO/kernel_patches/next/susfs_fix_patches/v2.2.0/ksu_toolkit.patch"
+	fi
 }
 
 patch_sultan() {

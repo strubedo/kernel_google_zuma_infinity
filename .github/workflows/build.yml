@@ -65,6 +65,38 @@ jobs:
             ccache-${{ runner.os }}-${{ inputs.target }}
             ccache-${{ runner.os }}
 
+      - name: Restore toolchain
+        id: toolchain-cache
+        uses: actions/cache@v4
+        with:
+          path: toolchains
+          key: toolchain-gcc-14.2.0-nolibc-aarch64-linux-53deb48c660f1453ca79fa224d44de1145c8c5377d90040934af063d1b726b29
+
+      - name: Fetch toolchain
+        if: steps.toolchain-cache.outputs.cache-hit != 'true'
+        run: |
+          set -Eeuo pipefail
+
+          URL="https://mirrors.edge.kernel.org/pub/tools/crosstool/files/bin/x86_64/14.2.0/x86_64-gcc-14.2.0-nolibc-aarch64-linux.tar.xz"
+          SHA256="53deb48c660f1453ca79fa224d44de1145c8c5377d90040934af063d1b726b29"
+
+          curl \
+            --fail \
+            --location \
+            --silent \
+            --show-error \
+            --retry 5 \
+            --retry-delay 5 \
+            --retry-all-errors \
+            -o toolchain.tar.xz \
+            "$URL"
+
+          echo "${SHA256}  toolchain.tar.xz" | sha256sum -c -
+
+          mkdir -p toolchains
+          tar -xJf toolchain.tar.xz -C toolchains
+          rm toolchain.tar.xz
+
       - name: Prepare scripts
         run: chmod +x scripts/*.sh
 

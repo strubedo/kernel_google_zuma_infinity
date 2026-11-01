@@ -245,10 +245,11 @@ fi
 if ((${#BUILD_VARIANTS[@]} == 0)); then
     JSON='{"include":[]}'
 else
+    BRANCH="${GITHUB_REF_NAME:-infinity}"
+
     JSON='{"include":['
     FIRST=true
 
-    for BRANCH in 17.0.0-cp2a 17.0.0-cp3a; do
     for TARGET in "${TARGETS[@]}"; do
         for VARIANT in "${BUILD_VARIANTS[@]}"; do
 
@@ -260,8 +261,7 @@ else
 
             JSON+="{\"branch\":\"${BRANCH}\",\"target\":\"${TARGET}\",\"variant\":\"${VARIANT}\"}"
 
-            done
-	    done
+        done
     done
 
     JSON+="]}"

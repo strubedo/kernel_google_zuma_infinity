@@ -249,13 +249,21 @@ copy_susfs() {
 }
 ##
 
+kernel_susfs_already_pinned() {
+	[[ -f "$KERNEL_REPO/fs/susfs.c" ]]
+}
+
 patch_susfs_ksu() {
-	msg "Copying susfs libs"
-	copy_susfs
-	msg "Applying SUSFS kernel patch"
-	apply_patch_optional \
-		"$KERNEL_REPO" \
-		"$KERNEL_REPO/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch"
+	if kernel_susfs_already_pinned; then
+		msg "SUSFS is already pinned into this kernel source tree - skipping the upstream susfs4ksu kernel patch (re-applying a live, unpinned susfs4ksu checkout here would overwrite the pinned/hand-resolved version)"
+	else
+		msg "Copying susfs libs"
+		copy_susfs
+		msg "Applying SUSFS kernel patch"
+		apply_patch_optional \
+			"$KERNEL_REPO" \
+			"$KERNEL_REPO/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch"
+	fi
 
 	msg "Applying SUSFS KernelSU patch"
 	apply_patch_optional \
@@ -264,14 +272,18 @@ patch_susfs_ksu() {
 }
 
 patch_susfs_ksu_next() {
-	msg "Copying sufs libs"
-	copy_susfs
+	if kernel_susfs_already_pinned; then
+		msg "SUSFS is already pinned into this kernel source tree - skipping the upstream susfs4ksu kernel patch (re-applying a live, unpinned susfs4ksu checkout here would overwrite the pinned/hand-resolved version)"
+	else
+		msg "Copying sufs libs"
+		copy_susfs
 
-	msg "Applying SUSFS KernelSU-Next integration"
+		msg "Applying SUSFS KernelSU-Next integration"
 
-    apply_patch_optional \
-        "$KERNEL_REPO" \
-        "$KERNEL_REPO/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch"
+		apply_patch_optional \
+			"$KERNEL_REPO" \
+			"$KERNEL_REPO/susfs4ksu/kernel_patches/50_add_susfs_in_gki-android14-6.1.patch"
+	fi
 
 	msg "Applying SUSFS KernelSU patch"
 	apply_patch_optional \
@@ -325,12 +337,33 @@ patch_susfs_ksu_next() {
 patch_sultan() {
 	msg "Applying Sultan specific patches (fs/namespace.c and kernel/sys.c)"
 	msg "fs/namespace.c will fail if Simons susfs patch was successful (differences in sources)."
-	apply_patch_optional \
-		"$KERNEL_REPO" \
-		"$KERNEL_REPO/sultan_patches/fix_namespace.c.patch"
+
+	if grep -q "susfs_alloc_unshare_ksu_vfsmnt" "$KERNEL_REPO/fs/namespace.c"; then
+		msg "SUSFS already added susfs_alloc_unshare_ksu_vfsmnt to fs/namespace.c; skipping fix_namespace.c.patch to avoid a duplicate definition"
+	else
+		apply_patch_optional \
+			"$KERNEL_REPO" \
+			"$KERNEL_REPO/sultan_patches/fix_namespace.c.patch"
+	fi
+
 	apply_patch_optional \
 		"$KERNEL_REPO" \
 		"$KERNEL_REPO/sultan_patches/fix_sys.c.patch"
+}
+
+ensure_susfs_hooks_decl() {
+	local hooks_file="$KERNEL_REPO/security/selinux/hooks.c"
+
+	if grep -q "extern int susfs_security_context_to_sid" "$hooks_file"; then
+		return 0
+	fi
+
+	msg "SUSFS patch dropped its susfs_security_context_to_sid extern in hooks.c (kernel source drift) - adding it back"
+
+	sed -i '/^extern bool ksu_selinux_hide_running __read_mostly;$/a\
+extern int susfs_security_context_to_sid(struct selinux_state *state,\
+\t\t\t    const char *scontext, u32 scontext_len, u32 *sid,\
+\t\t\t    gfp_t gfp);' "$hooks_file"
 }
 
 ######################################################
@@ -346,6 +379,7 @@ case "$VARIANT" in
 	clone_nomount
 	patch_utf8
 	patch_susfs_ksu
+	ensure_susfs_hooks_decl
 	patch_sultan
 	msg "$TARGET $VARIANT done"
         ;;
@@ -355,6 +389,7 @@ case "$VARIANT" in
 	clone_nomount
 	patch_utf8
 	patch_susfs_ksu
+	ensure_susfs_hooks_decl
 	patch_sultan
 	clone_vpnhide
 	patch_vpnhide
@@ -366,6 +401,7 @@ case "$VARIANT" in
 	clone_nomount
 	patch_utf8
 	patch_susfs_ksu_next
+	ensure_susfs_hooks_decl
 	patch_sultan
 	echo "$TARGET $VARIANT done"
         ;;
@@ -375,6 +411,7 @@ case "$VARIANT" in
 	clone_nomount
 	patch_utf8
 	patch_susfs_ksu_next
+	ensure_susfs_hooks_decl
 	patch_sultan	
 	clone_vpnhide
 	patch_vpnhide

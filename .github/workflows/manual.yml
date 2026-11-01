@@ -101,6 +101,7 @@ jobs:
     uses: ./.github/workflows/build.yml
 
     with:
+      branch: ${{ github.ref_name }}
       target: ${{ matrix.target }}
       variant: ${{ matrix.variant }}
 
